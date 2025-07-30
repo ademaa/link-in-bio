@@ -3,51 +3,50 @@
 import type React from "react"
 
 import { useState } from "react"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
+import { Label } from "@/components/ui/label"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { supabase } from "@/lib/supabase"
+import { LinkIcon } from "lucide-react"
 import Link from "next/link"
-import { ArrowLeft, Mail } from "lucide-react"
 
 export default function AuthPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [username, setUsername] = useState("")
   const [loading, setLoading] = useState(false)
-  const [magicLinkSent, setMagicLinkSent] = useState(false)
-  const supabase = createClientComponentClient()
-  const { toast } = useToast()
+  const [message, setMessage] = useState("")
+  const [error, setError] = useState("")
   const router = useRouter()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError("")
+    setMessage("")
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
+          data: {
+            username: username,
+          },
         },
       })
 
       if (error) throw error
 
-      toast({
-        title: "Check your email",
-        description: "We sent you a confirmation link to complete your signup.",
-      })
+      if (data.user) {
+        setMessage("Check your email for the confirmation link!")
+      }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+      setError(error.message)
     } finally {
       setLoading(false)
     }
@@ -56,52 +55,22 @@ export default function AuthPage() {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError("")
+    setMessage("")
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
 
-      router.push("/dashboard")
+      if (data.user) {
+        router.push("/dashboard")
+      }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          emailRedirectTo: `${location.origin}/auth/callback`,
-        },
-      })
-
-      if (error) throw error
-
-      setMagicLinkSent(true)
-      toast({
-        title: "Magic link sent!",
-        description: "Check your email for a sign-in link.",
-      })
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      })
+      setError(error.message)
     } finally {
       setLoading(false)
     }
@@ -110,17 +79,20 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="mb-8">
-          <Link href="/" className="inline-flex items-center text-sm text-gray-600 hover:text-gray-900">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to home
+        {/* Header */}
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-flex items-center space-x-2 mb-4">
+            <LinkIcon className="h-8 w-8 text-purple-600" />
+            <span className="text-2xl font-bold text-gray-900">LinkInBio</span>
           </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
+          <p className="text-gray-600">Sign in to your account or create a new one</p>
         </div>
 
         <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome to LinkInBio</CardTitle>
-            <CardDescription>Sign in to your account or create a new one</CardDescription>
+          <CardHeader>
+            <CardTitle>Authentication</CardTitle>
+            <CardDescription>Choose your preferred method to continue</CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
@@ -129,7 +101,7 @@ export default function AuthPage() {
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="signin" className="space-y-4">
+              <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email">Email</Label>
@@ -159,8 +131,22 @@ export default function AuthPage() {
                 </form>
               </TabsContent>
 
-              <TabsContent value="signup" className="space-y-4">
+              <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-username">Username</Label>
+                    <Input
+                      id="signup-username"
+                      type="text"
+                      placeholder="Choose a username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                      required
+                    />
+                    <p className="text-xs text-gray-500">
+                      Your profile will be available at: linkbio.com/u/{username || "username"}
+                    </p>
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <Input
@@ -190,44 +176,25 @@ export default function AuthPage() {
               </TabsContent>
             </Tabs>
 
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
+            {error && (
+              <Alert className="mt-4 border-red-200 bg-red-50">
+                <AlertDescription className="text-red-800">{error}</AlertDescription>
+              </Alert>
+            )}
 
-              {!magicLinkSent ? (
-                <form onSubmit={handleMagicLink} className="mt-6 space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="magic-email">Email for Magic Link</Label>
-                    <Input
-                      id="magic-email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" variant="outline" className="w-full bg-transparent" disabled={loading}>
-                    <Mail className="mr-2 h-4 w-4" />
-                    {loading ? "Sending..." : "Send Magic Link"}
-                  </Button>
-                </form>
-              ) : (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-md">
-                  <p className="text-sm text-green-800">
-                    Magic link sent! Check your email and click the link to sign in.
-                  </p>
-                </div>
-              )}
-            </div>
+            {message && (
+              <Alert className="mt-4 border-green-200 bg-green-50">
+                <AlertDescription className="text-green-800">{message}</AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
+
+        <div className="text-center mt-6">
+          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
+            ← Back to home
+          </Link>
+        </div>
       </div>
     </div>
   )

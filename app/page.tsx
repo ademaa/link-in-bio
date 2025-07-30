@@ -44,7 +44,7 @@ export default function LandingPage() {
               </Button>
             </Link>
             <Button variant="outline" size="lg" className="text-lg px-8 py-4 bg-transparent" asChild>
-              <Link href="/u/demo">View Example</Link>
+              <Link href="/demo">View Demo</Link>
             </Button>
           </div>
         </div>
@@ -56,9 +56,7 @@ export default function LandingPage() {
               <LinkIcon className="h-8 w-8 text-purple-600" />
             </div>
             <h3 className="text-xl font-semibold mb-2">Easy Link Management</h3>
-            <p className="text-gray-600">
-              Add, edit, and reorder your links with our intuitive drag-and-drop interface.
-            </p>
+            <p className="text-gray-600">Add, edit, and reorder your links with our intuitive interface.</p>
           </div>
           <div className="text-center p-6">
             <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -72,19 +70,10 @@ export default function LandingPage() {
               <Zap className="h-8 w-8 text-blue-600" />
             </div>
             <h3 className="text-xl font-semibold mb-2">Lightning Fast</h3>
-            <p className="text-gray-600">
-              Built with modern technology for blazing fast load times and smooth experience.
-            </p>
+            <p className="text-gray-600">Built with modern technology for blazing fast load times.</p>
           </div>
         </div>
       </main>
-
-      {/* Footer */}
-      <footer className="container mx-auto px-4 py-8 mt-20 border-t">
-        <div className="text-center text-gray-600">
-          <p>&copy; 2024 LinkInBio. Built with Next.js and Supabase.</p>
-        </div>
-      </footer>
     </div>
   )
 }

@@ -1,74 +1,54 @@
--- Create profiles table that references auth.users
-CREATE TABLE IF NOT EXISTS public.profiles (
+-- Enable RLS
+ALTER TABLE auth.users ENABLE ROW LEVEL SECURITY;
+
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  username TEXT UNIQUE,
-  display_name TEXT,
+  username TEXT UNIQUE NOT NULL,
+  full_name TEXT,
   bio TEXT,
   avatar_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create links table
-CREATE TABLE IF NOT EXISTS public.links (
+-- Create links table  
+CREATE TABLE IF NOT EXISTS links (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
   title TEXT NOT NULL,
   url TEXT NOT NULL,
-  position INTEGER DEFAULT 0,
+  order_index INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Enable Row Level Security
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.links ENABLE ROW LEVEL SECURITY;
+-- Add order_index column if it doesn't exist
+ALTER TABLE links ADD COLUMN IF NOT EXISTS order_index INTEGER DEFAULT 0;
 
--- Create policies for profiles table
-CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles
+-- Enable RLS on tables
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE links ENABLE ROW LEVEL SECURITY;
+
+-- Profiles policies
+CREATE POLICY "Public profiles are viewable by everyone" ON profiles
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert their own profile" ON public.profiles
+CREATE POLICY "Users can insert their own profile" ON profiles
   FOR INSERT WITH CHECK (auth.uid() = id);
 
-CREATE POLICY "Users can update their own profile" ON public.profiles
+CREATE POLICY "Users can update their own profile" ON profiles
   FOR UPDATE USING (auth.uid() = id);
 
-CREATE POLICY "Users can delete their own profile" ON public.profiles
-  FOR DELETE USING (auth.uid() = id);
-
--- Create policies for links table
-CREATE POLICY "Links are viewable by everyone" ON public.links
+-- Links policies  
+CREATE POLICY "Public links are viewable by everyone" ON links
   FOR SELECT USING (true);
 
-CREATE POLICY "Users can insert their own links" ON public.links
-  FOR INSERT WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE profiles.id = links.user_id 
-      AND auth.uid() = profiles.id
-    )
-  );
+CREATE POLICY "Users can insert their own links" ON links
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own links" ON public.links
-  FOR UPDATE USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE profiles.id = links.user_id 
-      AND auth.uid() = profiles.id
-    )
-  );
+CREATE POLICY "Users can update their own links" ON links
+  FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own links" ON public.links
-  FOR DELETE USING (
-    EXISTS (
-      SELECT 1 FROM public.profiles 
-      WHERE profiles.id = links.user_id 
-      AND auth.uid() = profiles.id
-    )
-  );
-
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS profiles_username_idx ON public.profiles(username);
-CREATE INDEX IF NOT EXISTS links_user_id_idx ON public.links(user_id);
-CREATE INDEX IF NOT EXISTS links_position_idx ON public.links(user_id, position);
+CREATE POLICY "Users can delete their own links" ON links
+  FOR DELETE USING (auth.uid() = user_id);
