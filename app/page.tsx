@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, LinkIcon, Users, Zap } from "lucide-react"
+import { ArrowRight, AudioWaveformIcon,LinkIcon, Users, Zap } from "lucide-react"
 
 export default function LandingPage() {
   return (
@@ -9,8 +9,8 @@ export default function LandingPage() {
       <header className="container mx-auto px-4 py-6">
         <nav className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <LinkIcon className="h-8 w-8 text-purple-600" />
-            <span className="text-2xl font-bold text-gray-900">LinkInBio</span>
+            <AudioWaveformIcon className="h-8 w-8 text-purple-600" />
+            <span className="text-2xl font-bold text-gray-900 font-sans">Linko</span>
           </div>
           <div className="flex items-center space-x-4">
             <Link href="/auth">
