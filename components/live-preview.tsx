@@ -24,12 +24,15 @@ interface LivePreviewProps {
 export function LivePreview({ user, fullName, bio, links, avatarUrl, username }: LivePreviewProps) {
   const getUsernameFromEmail = (email: string) => email.split("@")[0]
   const displayName =
-    fullName || user?.user_metadata?.full_name || (user?.email ? getUsernameFromEmail(user.email) : "User")
+    fullName ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.display_name ||
+    (user?.email ? getUsernameFromEmail(user.email) : "User")
   const displayBio = bio || user?.user_metadata?.bio || "Welcome to my LinkInBio page!"
   const displayUsername = username || (user?.email ? getUsernameFromEmail(user.email) : "username")
 
   return (
-    <Card className="w-full max-w-sm mx-auto">
+    <Card className="w-full max-w-sm mx-auto border-0 shadow-none">
       <CardContent className="pt-6">
         <div className="text-center">
           {/* Avatar */}

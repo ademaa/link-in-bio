@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation"
+import { notFound } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
@@ -10,47 +10,54 @@ interface LinkItem {
   id: string
   title: string
   url: string
-  position?: number
+  position: number
   icon?: string
 }
 
-async function getUserProfile(username: string): Promise<{ user: any; links: LinkItem[] } | null> {
+interface UserProfile {
+  username: string
+  display_name?: string
+  bio?: string
+  avatar_url?: string
+}
+
+async function getUserProfile(username: string): Promise<{ user: UserProfile; links: LinkItem[] } | null> {
   const supabase = await createClient()
 
   try {
-    // Demo profile
+    // Demo profile - static data to avoid hydration issues
     if (username === "demo") {
       return {
         user: {
           username: "demo",
           display_name: "Demo User",
           bio: "This is a demo profile showing how your LinkInBio page will look. Sign up to create your own!",
-          avatar_url: null,
+          avatar_url: undefined,
         },
         links: [
           {
-            id: "1",
+            id: "demo-1",
             title: "My Website",
             url: "https://example.com",
             position: 0,
             icon: "website",
           },
           {
-            id: "2",
+            id: "demo-2",
             title: "Twitter",
             url: "https://twitter.com/username",
             position: 1,
             icon: "twitter",
           },
           {
-            id: "3",
+            id: "demo-3",
             title: "Instagram",
             url: "https://instagram.com/username",
             position: 2,
             icon: "instagram",
           },
           {
-            id: "4",
+            id: "demo-4",
             title: "LinkedIn",
             url: "https://linkedin.com/in/username",
             position: 3,
@@ -63,18 +70,19 @@ async function getUserProfile(username: string): Promise<{ user: any; links: Lin
     // Get user profile by username
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("*")
+      .select("username, display_name, bio, avatar_url, id")
       .eq("username", username.toLowerCase())
       .single()
 
     if (profileError || !profile) {
+      console.log(`Profile not found for username: ${username}`)
       return null
     }
 
-    // Get user's links
+    // Get user's links ordered by position
     const { data: links, error: linksError } = await supabase
       .from("links")
-      .select("*")
+      .select("id, title, url, position, icon")
       .eq("user_id", profile.id)
       .order("position", { ascending: true })
 
@@ -83,7 +91,12 @@ async function getUserProfile(username: string): Promise<{ user: any; links: Lin
     }
 
     return {
-      user: profile,
+      user: {
+        username: profile.username,
+        display_name: profile.display_name,
+        bio: profile.bio,
+        avatar_url: profile.avatar_url,
+      },
       links: links || [],
     }
   } catch (error) {
@@ -93,9 +106,6 @@ async function getUserProfile(username: string): Promise<{ user: any; links: Lin
 }
 
 export default async function ProfilePage({ params }: { params: { username: string } }) {
-  // Redirect from /u/username to /username
-  redirect(`/${params.username}`)
-
   const result = await getUserProfile(params.username)
 
   if (!result) {
@@ -103,7 +113,6 @@ export default async function ProfilePage({ params }: { params: { username: stri
   }
 
   const { user, links } = result
-  const getUsernameFromEmail = (email: string) => email.split("@")[0]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
@@ -120,9 +129,10 @@ export default async function ProfilePage({ params }: { params: { username: stri
         </nav>
       </header>
 
-      {/* Profile */}
+      {/* Single-column, centered, mobile-optimized layout */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-md mx-auto">
+          {/* Profile Card */}
           <Card className="mb-8">
             <CardContent className="pt-6">
               <div className="text-center">
@@ -141,7 +151,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
                   </div>
                 )}
 
-                {/* Profile Info */}
+                {/* Display name, username, and bio */}
                 <h1 className="text-2xl font-bold text-gray-900 mb-2">{user.display_name || user.username}</h1>
                 <p className="text-gray-600 mb-4">@{user.username}</p>
                 {user.bio && <p className="text-gray-700 text-sm leading-relaxed">{user.bio}</p>}
@@ -149,7 +159,7 @@ export default async function ProfilePage({ params }: { params: { username: stri
             </CardContent>
           </Card>
 
-          {/* Links */}
+          {/* Links in user-defined order */}
           <div className="space-y-4">
             {links.map((link) => (
               <Button

@@ -2,8 +2,12 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ExternalLink, LinkIcon } from "lucide-react"
 import Link from "next/link"
+import { redirect } from "next/navigation"
 
 export default function DemoPage() {
+  // Redirect /demo to the demo username profile
+  redirect("/demo")
+
   const demoProfile = {
     username: "demo",
     full_name: "Demo User",

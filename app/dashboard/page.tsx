@@ -23,7 +23,7 @@ interface LinkItem {
   id: string
   title: string
   url: string
-  position?: number
+  position: number
   icon?: string
 }
 
@@ -36,6 +36,8 @@ interface Profile {
 }
 
 export default function Dashboard() {
+  console.log("Dashboard component rendering")
+
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [links, setLinks] = useState<LinkItem[]>([])
@@ -43,15 +45,17 @@ export default function Dashboard() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [message, setMessage] = useState("")
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
-  // Form states
-  const [fullName, setFullName] = useState("")
+  // Form states - using display_name as per requirements
+  const [displayName, setDisplayName] = useState("")
   const [bio, setBio] = useState("")
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   useEffect(() => {
+    setMounted(true)
     checkUser()
   }, [])
 
@@ -81,12 +85,12 @@ export default function Dashboard() {
 
       if (profileData) {
         setProfile(profileData)
-        setFullName(profileData.display_name || "")
+        setDisplayName(profileData.display_name || "")
         setBio(profileData.bio || "")
         setAvatarUrl(profileData.avatar_url || null)
       } else {
         // Fallback to user metadata if profile doesn't exist
-        setFullName(user.user_metadata?.full_name || "")
+        setDisplayName(user.user_metadata?.full_name || user.user_metadata?.display_name || "")
         setBio(user.user_metadata?.bio || "")
         setAvatarUrl(user.user_metadata?.avatar_url || null)
       }
@@ -124,11 +128,11 @@ export default function Dashboard() {
     setMessage("")
 
     try {
-      // Update profiles table
+      // Update profiles table with correct field names
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
-          display_name: fullName,
+          display_name: displayName,
           bio: bio,
           avatar_url: avatarUrl,
         })
@@ -139,7 +143,7 @@ export default function Dashboard() {
       // Also update user metadata for consistency
       const { error: userError } = await supabase.auth.updateUser({
         data: {
-          full_name: fullName,
+          display_name: displayName,
           bio: bio,
           avatar_url: avatarUrl,
         },
@@ -173,15 +177,20 @@ export default function Dashboard() {
   }
 
   const copyProfileLink = async () => {
-    if (!profile?.username) return
+    if (!profile?.username || !mounted) return
 
-    const profileUrl = `${window.location.origin}/u/${profile.username}`
+    const profileUrl = `${window.location.origin}/${profile.username}`
     try {
       await navigator.clipboard.writeText(profileUrl)
       setMessage("Profile link copied to clipboard!")
     } catch (error) {
       setError("Failed to copy link")
     }
+  }
+
+  const getProfileUrl = () => {
+    if (!mounted || !profile?.username) return ""
+    return `${window.location.host}/${profile.username}`
   }
 
   if (loading) {
@@ -209,7 +218,7 @@ export default function Dashboard() {
               {profile?.username && (
                 <>
                   <Button variant="outline" asChild>
-                    <Link href={`/u/${profile.username}`} target="_blank" rel="noopener noreferrer">
+                    <Link href={`/${profile.username}`} target="_blank" rel="noopener noreferrer">
                       <Eye className="mr-2 h-4 w-4" />
                       View Profile
                     </Link>
@@ -234,22 +243,19 @@ export default function Dashboard() {
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Dashboard</h1>
             <p className="text-gray-600">Manage your profile and links</p>
-            {profile?.username && (
+            {profile?.username && mounted && (
               <div className="mt-2 flex items-center space-x-2 text-sm text-gray-500">
                 <span>Your profile:</span>
-                <Link
-                  href={`/u/${profile.username}`}
-                  className="text-purple-600 hover:text-purple-700 flex items-center"
-                >
-                  linkinbio.com/u/{profile.username}
+                <Link href={`/${profile.username}`} className="text-purple-600 hover:text-purple-700 flex items-center">
+                  {getProfileUrl()}
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </Link>
               </div>
             )}
           </div>
 
-          {/* Add this after the dashboard title section */}
-          {profile?.username && (
+          {/* Profile Status Card */}
+          {profile?.username && mounted && (
             <Card className="mb-8 bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
@@ -258,14 +264,12 @@ export default function Dashboard() {
                     <p className="text-gray-600 text-sm mb-2">Share your LinkInBio page with the world</p>
                     <div className="flex items-center space-x-2 text-sm">
                       <span className="text-gray-500">Profile URL:</span>
-                      <code className="bg-white px-2 py-1 rounded text-purple-600 border">
-                        linkinbio.com/u/{profile.username}
-                      </code>
+                      <code className="bg-white px-2 py-1 rounded text-purple-600 border">{getProfileUrl()}</code>
                     </div>
                   </div>
                   <div className="flex space-x-3">
                     <Button variant="outline" asChild>
-                      <Link href={`/u/${profile.username}`} target="_blank" rel="noopener noreferrer">
+                      <Link href={`/${profile.username}`} target="_blank" rel="noopener noreferrer">
                         <Eye className="mr-2 h-4 w-4" />
                         View Profile
                       </Link>
@@ -292,14 +296,15 @@ export default function Dashboard() {
             </Alert>
           )}
 
+          {/* Two-column layout as per requirements */}
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Left Column - Profile & Links Management */}
+            {/* Left Column - Forms for editing profile and managing links */}
             <div className="lg:col-span-2 space-y-8">
-              {/* Profile Settings */}
+              {/* Profile Management Form */}
               <Card>
                 <CardHeader>
-                  <CardTitle>Profile Settings</CardTitle>
-                  <CardDescription>Update your profile information and avatar</CardDescription>
+                  <CardTitle>Profile Management</CardTitle>
+                  <CardDescription>Upload your avatar, set your username, display name, and bio</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {/* Avatar Upload */}
@@ -321,19 +326,19 @@ export default function Dashboard() {
                       <Input id="email" value={user?.email || ""} disabled className="bg-gray-50" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="fullName">Display Name</Label>
+                      <Label htmlFor="displayName">Display Name</Label>
                       <Input
-                        id="fullName"
+                        id="displayName"
                         placeholder="Your display name"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="bio">Bio</Label>
                       <Textarea
                         id="bio"
-                        placeholder="Tell people about yourself..."
+                        placeholder="Write a short bio..."
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
                         rows={3}
@@ -346,7 +351,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Social Media & Links Form */}
+              {/* Link Management Section */}
               <SocialMediaForm
                 user={user!}
                 onLinkAdded={() => loadLinks(user!.id)}
@@ -355,7 +360,7 @@ export default function Dashboard() {
                 existingLinksCount={links.length}
               />
 
-              {/* Drag & Drop Links */}
+              {/* Drag & Drop Links with Edit functionality */}
               <DragDropLinks
                 user={user!}
                 links={links}
@@ -365,18 +370,22 @@ export default function Dashboard() {
               />
             </div>
 
-            {/* Right Column - Live Preview */}
+            {/* Right Column - Live Preview in mobile phone-style mockup */}
             <div className="lg:col-span-1">
               <div className="sticky top-8">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Live Preview</h3>
-                <LivePreview
-                  user={user}
-                  fullName={fullName}
-                  bio={bio}
-                  links={links}
-                  avatarUrl={avatarUrl}
-                  username={profile?.username}
-                />
+                <div className="bg-gray-900 rounded-[2.5rem] p-2 shadow-2xl">
+                  <div className="bg-white rounded-[2rem] overflow-hidden">
+                    <LivePreview
+                      user={user}
+                      fullName={displayName}
+                      bio={bio}
+                      links={links}
+                      avatarUrl={avatarUrl}
+                      username={profile?.username}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
