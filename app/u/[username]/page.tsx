@@ -1,129 +1,106 @@
 import { notFound } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { ExternalLink, LinkIcon } from "lucide-react"
+import { ExternalLink } from "lucide-react"
 import Link from "next/link"
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
-
-interface Profile {
-  id: string
-  username: string
-  full_name: string | null
-  bio: string | null
-  avatar_url: string | null
-}
+import { createClient } from "@/lib/supabase/server"
+import { LinkIcon } from "@/components/link-icon"
 
 interface LinkItem {
   id: string
   title: string
   url: string
-  order_index?: number
+  position?: number
+  icon?: string
 }
 
-async function getProfile(username: string): Promise<{ profile: Profile; links: LinkItem[] } | null> {
-  const cookieStore = await cookies()
-  const supabase = createServerComponentClient({ cookies: () => cookieStore })
+async function getUserProfile(username: string): Promise<{ user: any; links: LinkItem[] } | null> {
+  const supabase = await createClient()
 
   try {
-    // First, get the profile
+    // Demo profile
+    if (username === "demo") {
+      return {
+        user: {
+          username: "demo",
+          display_name: "Demo User",
+          bio: "This is a demo profile showing how your LinkInBio page will look. Sign up to create your own!",
+          avatar_url: null,
+        },
+        links: [
+          {
+            id: "1",
+            title: "My Website",
+            url: "https://example.com",
+            position: 0,
+            icon: "website",
+          },
+          {
+            id: "2",
+            title: "Twitter",
+            url: "https://twitter.com/username",
+            position: 1,
+            icon: "twitter",
+          },
+          {
+            id: "3",
+            title: "Instagram",
+            url: "https://instagram.com/username",
+            position: 2,
+            icon: "instagram",
+          },
+          {
+            id: "4",
+            title: "LinkedIn",
+            url: "https://linkedin.com/in/username",
+            position: 3,
+            icon: "linkedin",
+          },
+        ],
+      }
+    }
+
+    // Get user profile by username
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("*")
-      .eq("username", username)
+      .eq("username", username.toLowerCase())
       .single()
 
     if (profileError || !profile) {
-      // If no profile found, check if it's the demo profile
-      if (username === "demo") {
-        return {
-          profile: {
-            id: "demo",
-            username: "demo",
-            full_name: "Demo User",
-            bio: "This is a demo profile showing how your LinkInBio page will look. Sign up to create your own!",
-            avatar_url: null,
-          },
-          links: [
-            {
-              id: "1",
-              title: "My Website",
-              url: "https://example.com",
-              order_index: 0,
-            },
-            {
-              id: "2",
-              title: "Twitter",
-              url: "https://twitter.com/username",
-              order_index: 1,
-            },
-            {
-              id: "3",
-              title: "Instagram",
-              url: "https://instagram.com/username",
-              order_index: 2,
-            },
-            {
-              id: "4",
-              title: "LinkedIn",
-              url: "https://linkedin.com/in/username",
-              order_index: 3,
-            },
-          ],
-        }
-      }
       return null
     }
 
-    // Get the user's links - try with order_index first, fallback to created_at
-    let links: LinkItem[] = []
+    // Get user's links
+    const { data: links, error: linksError } = await supabase
+      .from("links")
+      .select("*")
+      .eq("user_id", profile.id)
+      .order("position", { ascending: true })
 
-    try {
-      // First try to order by order_index
-      const { data: linksData, error: linksError } = await supabase
-        .from("links")
-        .select("*")
-        .eq("user_id", profile.id)
-        .order("order_index", { ascending: true })
-
-      if (linksError) {
-        throw linksError
-      }
-
-      links = linksData || []
-    } catch (orderIndexError) {
-      console.log("order_index column not found, falling back to created_at ordering")
-
-      // Fallback to ordering by created_at if order_index doesn't exist
-      const { data: linksData, error: linksError } = await supabase
-        .from("links")
-        .select("id, title, url, created_at")
-        .eq("user_id", profile.id)
-        .order("created_at", { ascending: true })
-
-      if (linksError) {
-        console.error("Error fetching links:", linksError)
-        return { profile, links: [] }
-      }
-
-      links = linksData || []
+    if (linksError) {
+      console.error("Error fetching links:", linksError)
     }
 
-    return { profile, links }
+    return {
+      user: profile,
+      links: links || [],
+    }
   } catch (error) {
-    console.error("Error fetching profile:", error)
+    console.error("Error fetching user profile:", error)
     return null
   }
 }
 
 export default async function ProfilePage({ params }: { params: { username: string } }) {
-  const result = await getProfile(params.username)
+  const result = await getUserProfile(params.username)
 
   if (!result) {
     notFound()
   }
 
-  const { profile, links } = result
+  const { user, links } = result
+  const getUsernameFromEmail = (email: string) => email.split("@")[0]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50">
@@ -146,22 +123,25 @@ export default async function ProfilePage({ params }: { params: { username: stri
           <Card className="mb-8">
             <CardContent className="pt-6">
               <div className="text-center">
-                {profile.avatar_url ? (
+                {/* Avatar */}
+                {user.avatar_url ? (
                   <img
-                    src={profile.avatar_url || "/placeholder.svg"}
-                    alt={profile.full_name || profile.username}
-                    className="w-24 h-24 rounded-full mx-auto mb-4 object-cover"
+                    src={user.avatar_url || "/placeholder.svg"}
+                    alt={user.display_name || user.username}
+                    className="w-24 h-24 rounded-full mx-auto mb-4 object-cover border-2 border-gray-200"
                   />
                 ) : (
                   <div className="w-24 h-24 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full mx-auto mb-4 flex items-center justify-center">
                     <span className="text-2xl font-bold text-white">
-                      {profile.full_name?.charAt(0) || profile.username.charAt(0).toUpperCase()}
+                      {(user.display_name || user.username).charAt(0).toUpperCase()}
                     </span>
                   </div>
                 )}
-                <h1 className="text-2xl font-bold text-gray-900 mb-2">{profile.full_name || profile.username}</h1>
-                <p className="text-gray-600 mb-4">@{profile.username}</p>
-                {profile.bio && <p className="text-gray-700 text-sm leading-relaxed">{profile.bio}</p>}
+
+                {/* Profile Info */}
+                <h1 className="text-2xl font-bold text-gray-900 mb-2">{user.display_name || user.username}</h1>
+                <p className="text-gray-600 mb-4">@{user.username}</p>
+                {user.bio && <p className="text-gray-700 text-sm leading-relaxed">{user.bio}</p>}
               </div>
             </CardContent>
           </Card>
@@ -172,11 +152,14 @@ export default async function ProfilePage({ params }: { params: { username: stri
               <Button
                 key={link.id}
                 variant="outline"
-                className="w-full h-14 text-left justify-between bg-white hover:bg-gray-50 border-2"
+                className="w-full h-14 text-left justify-between bg-white hover:bg-gray-50 border-2 transition-all duration-200 hover:border-purple-300 hover:shadow-md"
                 asChild
               >
                 <a href={link.url} target="_blank" rel="noopener noreferrer">
-                  <span className="font-medium">{link.title}</span>
+                  <div className="flex items-center">
+                    <LinkIcon icon={link.icon} className="w-5 h-5 mr-3" />
+                    <span className="font-medium">{link.title}</span>
+                  </div>
                   <ExternalLink className="h-4 w-4" />
                 </a>
               </Button>

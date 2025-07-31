@@ -10,18 +10,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase/client"
 import { LinkIcon } from "lucide-react"
 import Link from "next/link"
+import { MagicLinkAuth } from "@/components/magic-link-auth"
 
 export default function AuthPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [username, setUsername] = useState("")
+  const [fullName, setFullName] = useState("")
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
+  const supabase = createClient()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,7 +37,7 @@ export default function AuthPage() {
         password,
         options: {
           data: {
-            username: username,
+            full_name: fullName,
           },
         },
       })
@@ -43,7 +45,13 @@ export default function AuthPage() {
       if (error) throw error
 
       if (data.user) {
-        setMessage("Check your email for the confirmation link!")
+        if (data.user.email_confirmed_at) {
+          // User is immediately confirmed (e.g., in development)
+          router.push("/dashboard")
+        } else {
+          // User needs to confirm email
+          setMessage("Check your email for the confirmation link!")
+        }
       }
     } catch (error: any) {
       setError(error.message)
@@ -96,9 +104,10 @@ export default function AuthPage() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="signin">Sign In</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
+                <TabsTrigger value="magic">Magic Link</TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
@@ -134,18 +143,15 @@ export default function AuthPage() {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="signup-username">Username</Label>
+                    <Label htmlFor="signup-name">Full Name</Label>
                     <Input
-                      id="signup-username"
+                      id="signup-name"
                       type="text"
-                      placeholder="Choose a username"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ""))}
+                      placeholder="Enter your full name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
                       required
                     />
-                    <p className="text-xs text-gray-500">
-                      Your profile will be available at: linkbio.com/u/{username || "username"}
-                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
@@ -173,6 +179,10 @@ export default function AuthPage() {
                     {loading ? "Creating account..." : "Create Account"}
                   </Button>
                 </form>
+              </TabsContent>
+
+              <TabsContent value="magic">
+                <MagicLinkAuth onError={setError} onSuccess={setMessage} />
               </TabsContent>
             </Tabs>
 
