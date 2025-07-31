@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ExternalLink } from "lucide-react"
@@ -105,10 +105,26 @@ async function getUserProfile(username: string): Promise<{ user: UserProfile; li
   }
 }
 
+// Generate static params to help Next.js understand which routes should be handled here
+export async function generateStaticParams() {
+  // Only generate for demo - let other usernames be handled dynamically
+  return [{ username: "demo" }]
+}
+
 export default async function ProfilePage({ params }: { params: { username: string } }) {
-  const result = await getUserProfile(params.username)
+  const username = params.username
+
+  // Redirect all username routes to /u/username format
+  redirect(`/u/${username}`)
+
+  console.log(`ProfilePage called with username: ${username}`)
+
+  // Don't handle reserved routes here - let Next.js route them to their dedicated pages
+  // This component should only handle actual usernames
+  const result = await getUserProfile(username)
 
   if (!result) {
+    console.log(`No profile found for username: ${username}`)
     notFound()
   }
 

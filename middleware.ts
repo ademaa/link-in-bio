@@ -1,45 +1,12 @@
 import { updateSession } from "@/lib/supabase/middleware"
-import { NextResponse, type NextRequest } from "next/server"
+import type { NextRequest } from "next/server"
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Handle username routes by rewriting to the profile route group
-  // Only for single-segment paths that aren't reserved routes
-  const pathSegments = pathname.split("/").filter(Boolean)
+  console.log(`Middleware processing: ${pathname}`)
 
-  if (pathSegments.length === 1) {
-    const username = pathSegments[0]
-
-    // List of reserved routes that should NOT be treated as usernames
-    const reservedRoutes = [
-      "auth",
-      "dashboard",
-      "api",
-      "_next",
-      "favicon.ico",
-      "robots.txt",
-      "sitemap.xml",
-      "admin",
-      "login",
-      "signup",
-      "settings",
-      "help",
-      "about",
-      "contact",
-      "privacy",
-      "terms",
-    ]
-
-    // If it's not a reserved route, rewrite to the profile route group
-    if (!reservedRoutes.includes(username.toLowerCase())) {
-      const url = request.nextUrl.clone()
-      url.pathname = `/(profile)/${username}`
-      return NextResponse.rewrite(url)
-    }
-  }
-
-  // For all other routes, just update the session
+  // Just handle session updates - let Next.js handle routing naturally
   return await updateSession(request)
 }
 

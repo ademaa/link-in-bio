@@ -6,7 +6,7 @@ import { redirect } from "next/navigation"
 
 export default function DemoPage() {
   // Redirect /demo to the demo username profile
-  redirect("/demo")
+  redirect("/u/demo")
 
   const demoProfile = {
     username: "demo",
